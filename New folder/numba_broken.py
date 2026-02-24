@@ -29,6 +29,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numba
+from numba import jit , prange
 #=======================================================================
 @numba.jit(nopython=True)
 def initdat(nmax):
@@ -45,7 +46,6 @@ def initdat(nmax):
     arr = np.random.random_sample((nmax,nmax))*2.0*np.pi
     return arr
 #=======================================================================
-@numba.jit(nopython=True)
 def plotdat(arr,pflag,nmax):
     """
     Arguments:
@@ -93,12 +93,11 @@ def plotdat(arr,pflag,nmax):
     ax.set_aspect('equal')
     plt.show()
 #=======================================================================
-@numba.jit(nopython=True)
 def savedat(arr,nsteps,Ts,runtime,ratio,energy,order,nmax):
     """
     Arguments:
 	  arr (float(nmax,nmax)) = array that contains lattice data;
-	  nsteps (int) = number of Monte Carlo steps (MCS) performed;
+	  nsteps (int) = number of Monte Carlo steps (MCS) performed;s
 	  Ts (float) = reduced temperature (range 0 to 2);
 	  ratio (float(nsteps)) = array of acceptance ratios per MCS;
 	  energy (float(nsteps)) = array of reduced energies per MCS;
@@ -166,7 +165,6 @@ def one_energy(arr,ix,iy,nmax):
     en += 0.5*(1.0 - 3.0*np.cos(ang)**2)
     return en
 #=======================================================================
-@numba.jit(nopython=True)
 def all_energy(arr,nmax):
     """
     Arguments:
@@ -184,7 +182,8 @@ def all_energy(arr,nmax):
             enall += one_energy(arr,i,j,nmax)
     return enall
 #=======================================================================
-@numba.jit(nopython=True)
+
+numba.jit(noPython= True, Parallel = True)
 def get_order(arr,nmax):
     """
     Arguments:
@@ -204,7 +203,7 @@ def get_order(arr,nmax):
     # put it in a (3,i,j) array.
     #
     lab = np.vstack((np.cos(arr),np.sin(arr),np.zeros_like(arr))).reshape(3,nmax,nmax)
-    for a in range(3):
+    for a in prange(3):
         for b in range(3):
             for i in range(nmax):
                 for j in range(nmax):
@@ -213,7 +212,6 @@ def get_order(arr,nmax):
     eigenvalues,eigenvectors = np.linalg.eig(Qab)
     return eigenvalues.max()
 #=======================================================================
-@numba.jit(nopython=True)
 def MC_step(arr,Ts,nmax):
     """
     Arguments:
@@ -261,7 +259,6 @@ def MC_step(arr,Ts,nmax):
                     arr[ix,iy] -= ang
     return accept/(nmax*nmax)
 #=======================================================================
-@numba.jit(nopython=True)
 def main(program, nsteps, nmax, temp, pflag):
     """
     Arguments:

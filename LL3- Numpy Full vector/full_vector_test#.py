@@ -157,37 +157,28 @@ def one_energy(arr,ix,iy,nmax):
                          ,arr[ix,iy]-arr[ix,iyp],
                          arr[ix,iy]-arr[ix,iym]])
     return np.sum(0.5*(1.0-3.0*np.cos(full_arr)**2))
-
-    # ang = arr[ix,iy]-arr[ixp,iy]
-    # en += 0.5*(1.0 - 3.0*np.cos(ang)**2)
-    # ang = arr[ix,iy]-arr[ixm,iy]
-    # en += 0.5*(1.0 - 3.0*np.cos(ang)**2)
-    # ang = arr[ix,iy]-arr[ix,iyp]
-    # en += 0.5*(1.0 - 3.0*np.cos(ang)**2)
-    # ang = arr[ix,iy]-arr[ix,iym]
-    # en += 0.5*(1.0 - 3.0*np.cos(ang)**2)
-    # return en
 #=======================================================================
-def all_energy(arr,nmax):
+def one_energy_all(arr):
     """
-    Arguments:
-	  arr (float(nmax,nmax)) = array that contains lattice data;
-      nmax (int) = side length of square lattice.
-    Description:
-      Function to compute the energy of the entire lattice. Output
-      is in reduced units (U/epsilon).
-      Position of the other neighbours.
-	Returns:
-	  enall (float) = reduced energy of lattice.
+    This calculates the total energy on each block with comparing from the 4 surrondings and calcuates the energy of all.
+
     """
-    # Grid system, so you are basically calculating i+1,j,i,j+1,i
+    # Neighbour angles using periodic boundaries
+    up    = np.roll(arr, -1, axis=0)
+    down  = np.roll(arr, +1, axis=0)
+    left  = np.roll(arr, -1, axis=1)
+    right = np.roll(arr, +1, axis=1)
+
+    #this correlates the position and calcuates the energy of each of the 4 neighbours in one hit and returns the total energy.
 
 
+    # XY model local energy at each site
+    Energy = -(np.cos(arr - up) +
+          np.cos(arr - down) +
+          np.cos(arr - left) +
+          np.cos(arr - right))
 
-    for i in range(nmax):
-        for j in range(nmax):
-            enall += one_energy(arr,i,j,nmax)
-    return enall
+    return Energy
 #=======================================================================
 def get_order(arr,nmax):
     """
@@ -199,7 +190,7 @@ def get_order(arr,nmax):
       using the Q tensor approach, as in equation (3) of the
       project notes.  Function returns S_lattice = max(eigenvalues(Q_ab)).
 	Returns:
-	  max(eigenvalues(Qab)) (float) = order parameter for lattice.
+	  max(eigenvalues(Qab)) (float) = order parameter for lattice. # I dont think this works properly
     """
     Qab = np.zeros((3,3))
     delta = np.eye(3,3)
@@ -207,19 +198,13 @@ def get_order(arr,nmax):
     # Generate a 3D unit vector for each cell (i,j) and
     # put it in a (3,i,j) array.
     #
-    lab = np.vstack((np.cos(arr),np.sin(arr),np.zeros_like(arr))).reshape(2,nmax,nmax)
+    lab = np.vstack((np.cos(arr),np.sin(arr),np.zeros_like(arr))).reshape(3,nmax,nmax)
     for a in range(3):
         for b in range(3):
             for i in range(nmax):
                 for j in range(nmax):
-                    Qab[a,b] += # Make a sum of this3*lab[a,i,j]*lab[b,i,j]# - delta[a,b] # delta in there, makes a 2d array, with values 3,3
-                    lab[a,i,j] -         
-    # counting through the values in a,b each iteration is taking away
-
-    QAB = np.sum(QAB)
-    
-    
-    Qab = Qab/(3*nmax*nmax) # divide it, putting in the a,i,j value and calculating it 
+                    Qab[a,b] += 3*lab[a,i,j]*lab[b,i,j] - delta[a,b]
+    Qab = Qab/(2*nmax*nmax)
     eigenvalues,eigenvectors = np.linalg.eig(Qab)
     return eigenvalues.max()
 #=======================================================================
@@ -236,6 +221,9 @@ def MC_step(arr,Ts,nmax):
       ratio for information.  This is the fraction of attempted changes
       that are successful.  Generally aim to keep this around 0.5 for
       efficient simulation.
+      
+      This method looks to change the values to 1, and see what is accepted and everything is changed.
+      and once this done, other wise it does the boltzmann and returns the value of that.
 	Returns:
 	  accept/(nmax**2) (float) = acceptance ratio for current MCS.
     """
@@ -252,25 +240,50 @@ def MC_step(arr,Ts,nmax):
     ix = xran
     iy = yran
     ang = aran
-    en0 = one_energy(arr,ix,iy,nmax)
-    arr += ang
-    en1 = one_energy(arr,ix,iy,nmax)
-    diff = en0-en1
- 
+    en0 = one_energy_all(arr) # Calculate one full energy carry it out no everything and store it
+    arr += ang # calculate it with the angle
+    en1 = one_energy_all(arr) # calculate with the change
+    # en0, en1, ang are arrays of shape (nmax, nmax)
+    # # 1. Accept moves that lower energy
+    mask_good = (en1 <= en0)
 
-    for i in diff:
-            if diff >= 0:
-                accept += 1
-            else:
-            # Now apply the Monte Carlo test - compare
-            # exp( -(E_new - E_old) / T* ) >= rand(0,1)
-                boltz = np.exp( -(en1 - en0) / Ts )
+    # 2. Boltzmann acceptance for worse moves
+    dE = en1 - en0
+    boltz = np.exp(-dE / Ts)
+    rand = np.random.rand(*en1.shape)
+    mask_boltz = (dE > 0) & (boltz >= rand) # This is setting the value
 
-            if boltz >= np.random.uniform(0.0,1.0):
-                accept += 1
-            else:
-                arr -= ang
-    return accept/(nmax*nmax)
+    # sets an or statement for the code
+    accept_mask = mask_good | mask_boltz
+
+    # 4. Turn accepted moves into the value of 1 and calculates the total sum
+    result = accept_mask.astype(int)
+    count = result.sum()
+
+    # 5. Undo rejected moves, all rejected moves are gone
+    arr[~accept_mask] -= ang[~accept_mask]
+
+    # 6. Return acceptance fraction and then it will return the accepted values.
+    return accept_mask.mean()
+
+
+##################
+def all_energy(arr,nmax):
+    """
+    Arguments:
+	  arr (float(nmax,nmax)) = array that contains lattice data;
+      nmax (int) = side length of square lattice.
+    Description:
+      Function to compute the energy of the entire lattice. Output
+      is in reduced units (U/epsilon).
+	Returns:
+	  enall (float) = reduced energy of lattice.
+    """
+    enall = 0.0
+    for i in range(nmax):
+        for j in range(nmax):
+            enall += one_energy(arr,i,j,nmax)
+    return enall
 #=======================================================================
 def main(program, nsteps, nmax, temp, pflag):
     """
@@ -327,4 +340,3 @@ if __name__ == '__main__':
     else:
         print("Usage: python {} <ITERATIONS> <SIZE> <TEMPERATURE> <PLOTFLAG>".format(sys.argv[0]))
 #=======================================================================
-

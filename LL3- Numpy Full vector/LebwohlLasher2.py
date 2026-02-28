@@ -180,7 +180,9 @@ def all_energy(arr,nmax):
 	Returns:
 	  enall (float) = reduced energy of lattice.
     """
-    # Grid system, so you are basically calculating i+1,j,i,j+1,i-1+j-1+
+    # Grid system, so you are basically calculating i+1,j,i,j+1,i
+
+
 
     for i in range(nmax):
         for j in range(nmax):

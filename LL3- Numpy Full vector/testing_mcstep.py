@@ -235,7 +235,7 @@ def MC_step(arr,Ts,nmax):
     ang = aran
     lattice_cord = np.array([ix,iy])
     lattice_ang = np.array([ang])
-    lattice_full = np.sum(lattice_cord,lattice_ang)
+    lattice_full = lattice_cord + lattice_ang
     en0 = one_energy(arr,ix,iy,nmax)
     arr[ix,iy] += ang
     en1 = one_energy(arr,ix,iy,nmax)
@@ -269,9 +269,9 @@ def main(program, nsteps, nmax, temp, pflag):
     # Plot initial frame of lattice
     plotdat(lattice,pflag,nmax)
     # Create arrays to store energy, acceptance ratio and order parameter
-    energy = np.zeros(nsteps+1,dtype=np.dtype)
-    ratio = np.zeros(nsteps+1,dtype=np.dtype)
-    order = np.zeros(nsteps+1,dtype=np.dtype)
+    energy = np.zeros(nsteps+1,dtype=np.float64)
+    ratio = np.zeros(nsteps+1,dtype=np.float64)
+    order = np.zeros(nsteps+1,dtype=np.float64)
     # Set initial values in arrays
     energy[0] = all_energy(lattice,nmax)
     ratio[0] = 0.5 # ideal value

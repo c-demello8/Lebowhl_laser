@@ -1,0 +1,16 @@
+These are the different commands for running each type of method:
+
+MPI4PY
+- mpirun -np 3 python -m cProfile LebwohlLasher_MPI_4PY 50 50 1 0 > LL-3-50-50-1-0-6
+
+Cython
+- Setup python "".py build_ext -fi
+- Run  python -m cProfile "Run_file".py 50 50 1 0 > LL-3-50-50-1-0-6
+
+Cython OpenMP - Same as Cython; however, you have to mention the number of threads.
+- OMP_NUM_THREADS=8 python -m cProfile LebwohlLasher_MPI_4PY 50 50 1 0 > LL-3-50-50-1-0-6
+
+
+Normal scripts for Numba and Python General
+- does not require setup files you just run it 
+- python -m cProfile LebwohlLasher_MPI_4PY 50 50 1 0 > LL-3-50-50-1-0-6

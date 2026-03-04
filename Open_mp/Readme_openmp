@@ -1,0 +1,2 @@
+OMP_NUM_THREADS=3 python
+Do a setup build like in the previous files, and use the start OMP_NUM_THREADS= n, where n is the number of threads u want to use.
